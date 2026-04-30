@@ -1,4 +1,4 @@
-# When a +5% A/B Test Win Is Misleading
+# Rethinking A/B Test Wins
 
 A product experimentation case study showing how a statistically significant A/B test result can still be the wrong call to ship.
 
@@ -282,23 +282,6 @@ The net revenue difference between shipping globally and shipping to new users o
 
 ---
 
-## How to Reproduce
-
-```bash
-# 1. Clone and install
-git clone https://github.com/maissabounar/ab-test-misleading-casestudy
-cd ab-test-misleading-casestudy
-pip install -r requirements.txt
-
-# 2. Generate synthetic data
-python python/generate_data.py
-
-# 3. Run analysis (prints full results to stdout)
-python python/experiment_analysis.py
-
-# 4. Generate charts
-python python/generate_charts.py
-# → images/chart1_topline_uplift.png ... chart6_bayesian.png
 ```
 
 All scripts run from the repo root. No external data sources required.
@@ -316,17 +299,3 @@ All scripts run from the repo root. No external data sources required.
 | `sql/02_segment_analysis.sql` | Segment-level uplift across all dimensions in a single query |
 | `sql/03_guardrail_metrics.sql` | Refund rate, revenue per user, revenue per converter, net revenue |
 | `sql/04_time_stability.sql` | Daily conversion rates, uplift, and CI bounds |
-
----
-
-## Suggested Repo Name
-
-`ab-test-misleading-casestudy`
-
-## Suggested GitHub Description
-
-> End-to-end product experimentation case study. A +5% A/B test win hides returning-user harm, refund rate degradation, and a treatment effect that decays after 48 hours. Includes CUPED, BH correction, Bayesian analysis, and guardrail metrics.
-
-## Suggested GitHub Topics
-
-`ab-testing` · `experimentation` · `product-analytics` · `statistics` · `cuped` · `bayesian` · `python` · `bigquery` · `data-science` · `portfolio`
