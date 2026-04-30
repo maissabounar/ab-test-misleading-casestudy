@@ -6,7 +6,7 @@ The team wanted to ship. This is why they should not.
 
 ---
 
-## Why This Matters
+## Impact on the business
 
 A 5% lift at scale feels decisive. Here it was covering a 58% spike in refund rate, a 7.9% CVR drop for returning users, and revenue per user down 4.6%.
 
@@ -27,7 +27,10 @@ None of that was visible in the headline number. This is what the deeper cut fou
 
 The conversion gain is real but narrow. It comes from new users, runs on paid social traffic, and decays after 48 hours. Returning users convert worse. Revenue per user is down. Refund rate is up 58%.
 
-**Recommendation: Do not ship globally.** A restricted rollout to new users on Chrome and desktop is defensible once the Safari issue is diagnosed. Everything else needs more data.
+
+> [!IMPORTANT]
+>**Recommendation: Do not ship globally.** A restricted rollout to new users on Chrome and desktop is defensible once the Safari issue is diagnosed. Everything else needs more data.
+
 
 ![Conversion rate by group with 95% CI](images/chart1_topline_uplift.png)
 
