@@ -2,7 +2,7 @@
 
 A subscription app tested a simplified onboarding flow. Variant B removed one step and surfaced a promotional annual plan earlier. Two weeks, 120,000 users, conversion up 5.1%.
 
-The team wanted to ship. This is why they should not.
+The team was ready to ship. The data says no.
 
 ---
 
