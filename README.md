@@ -85,18 +85,20 @@ Significant, tight CI, clean split. If this were the only cut, it would ship.
 
 ## What Broke Under the Surface
 
-### 1. The effect is smaller than it looks
+### 1. Baseline imbalance inflates the raw uplift
 
-Treatment had slightly higher pre-experiment activity scores than control. That alone was inflating the raw number. CUPED adjusts for this using `pre_experiment_activity_score` as a covariate.
+Treatment had slightly higher pre-experiment activity scores than control. CUPED regresses out `pre_experiment_activity_score` to remove that pre-existing difference from the effect estimate.
 
 ```
-Variance reduction:     14.8%
-Raw uplift:            +0.76 pp  (+5.1% relative)
-CUPED-adjusted uplift: +0.50 pp  (+3.4% relative)
+Raw uplift:            +0.76 pp  (+5.1%)
+CUPED-adjusted uplift: +0.50 pp  (+3.4%)
 Adjusted 95% CI:       [+0.28 pp, +0.72 pp]
+Variance reduction:     14.8%
 ```
 
-Still significant. But a third smaller than what we started with, and that changes the revenue math.
+A third of the apparent effect is baseline imbalance, not treatment. The adjusted number is still significant, but it shifts the revenue case considerably.
+
+The bars below show raw vs adjusted with 95% CI. The gap is not marginal.
 
 ![Raw vs CUPED-adjusted uplift](images/chart4_cuped.png)
 

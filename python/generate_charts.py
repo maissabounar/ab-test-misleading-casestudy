@@ -236,10 +236,10 @@ def chart4_cuped(df: pd.DataFrame):
         df[covariate] - df[covariate].mean()
     )
 
-    ctrl_raw  = df[df.experiment_group == "control"]["conversion_flag"]
-    trt_raw   = df[df.experiment_group == "treatment"]["conversion_flag"]
-    ctrl_adj  = df[df.experiment_group == "control"]["conversion_cuped"]
-    trt_adj   = df[df.experiment_group == "treatment"]["conversion_cuped"]
+    ctrl_raw = df[df.experiment_group == "control"]["conversion_flag"]
+    trt_raw  = df[df.experiment_group == "treatment"]["conversion_flag"]
+    ctrl_adj = df[df.experiment_group == "control"]["conversion_cuped"]
+    trt_adj  = df[df.experiment_group == "treatment"]["conversion_cuped"]
 
     raw_diff = trt_raw.mean() - ctrl_raw.mean()
     adj_diff = trt_adj.mean() - ctrl_adj.mean()
@@ -247,35 +247,36 @@ def chart4_cuped(df: pd.DataFrame):
     raw_se = np.sqrt(ctrl_raw.var() / len(ctrl_raw) + trt_raw.var() / len(trt_raw))
     adj_se = np.sqrt(ctrl_adj.var() / len(ctrl_adj) + trt_adj.var() / len(trt_adj))
 
-    fig, ax = plt.subplots(figsize=(8, 5))
-    fig.suptitle("Chart 4 — Raw vs CUPED-Adjusted Treatment Effect", fontsize=14, fontweight="bold")
+    var_red = 1 - (ctrl_adj.var() + trt_adj.var()) / (ctrl_raw.var() + trt_raw.var())
 
-    labels  = ["Raw uplift", "CUPED-adjusted uplift"]
-    diffs   = [raw_diff * 100, adj_diff * 100]
-    errors  = [1.96 * raw_se * 100, 1.96 * adj_se * 100]
-    colors  = [PALETTE["treatment"], PALETTE["neutral"]]
+    fig, ax = plt.subplots(figsize=(6, 5))
 
-    ax.bar(labels, diffs, color=colors, width=0.4, edgecolor="white")
-    ax.errorbar(labels, diffs, yerr=errors, fmt="none",
-                color="#333", capsize=8, capthick=2, elinewidth=2)
-    for i, (val, err) in enumerate(zip(diffs, errors)):
-        ax.text(i, val + err + 0.04, f"{val:.2f} pp\n± {err:.2f} pp",
-                ha="center", va="bottom", fontsize=10, fontweight="bold")
+    ax.set_title("Raw vs CUPED-Adjusted Uplift", fontsize=13, fontweight="bold", pad=12)
+    fig.text(
+        0.5, 0.91,
+        f"Covariate: pre_experiment_activity_score  ·  Variance reduction {var_red:.1%}",
+        ha="center", fontsize=9, color="#777",
+    )
 
-    ax.axhline(0, color="#888", linestyle="--", linewidth=1)
-    ax.set_ylabel("Absolute uplift (percentage points)")
-    ax.set_title("CUPED reduces apparent effect size — accounting for pre-experiment imbalance")
-    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x:.2f} pp"))
+    labels = ["Raw", "CUPED-adjusted"]
+    diffs  = [raw_diff * 100, adj_diff * 100]
+    errors = [1.96 * raw_se * 100, 1.96 * adj_se * 100]
+    colors = [PALETTE["treatment"], PALETTE["neutral"]]
+
+    ax.bar(labels, diffs, color=colors, width=0.36, edgecolor="white", zorder=3)
+    ax.errorbar(
+        labels, diffs, yerr=errors, fmt="none",
+        color="#444", capsize=7, capthick=1.8, elinewidth=1.8, zorder=4,
+    )
+
+    ax.axhline(0, color="#AAA", linestyle="--", linewidth=1)
+    ax.set_ylabel("Uplift (percentage points)")
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x:.2f}"))
     ax.set_axisbelow(True)
     ax.yaxis.grid(True, color=PALETTE["grid"])
 
-    var_red = 1 - (ctrl_adj.var() + trt_adj.var()) / (ctrl_raw.var() + trt_raw.var())
-    ax.text(0.97, 0.05, f"Variance reduction: {var_red:.1%}",
-            transform=ax.transAxes, ha="right", fontsize=10,
-            bbox=dict(boxstyle="round,pad=0.3", facecolor="#F5F5F5", edgecolor="#CCC"))
-
-    plt.tight_layout()
-    save(fig, "chart4_cuped")
+    plt.tight_layout(rect=[0, 0, 1, 0.89])
+    save(fig, "chart4_cuped", tight=False)
 
 
 # ---------------------------------------------------------------------------
