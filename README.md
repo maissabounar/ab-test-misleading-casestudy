@@ -296,16 +296,4 @@ ab-test-misleading-casestudy/
 | `sql/03_guardrail_metrics.sql` | Refund rate, revenue per user, revenue per converter, net revenue |
 | `sql/04_time_stability.sql` | Daily CVR, uplift, and CI bounds |
 
----
 
-## Reproducing the Analysis
-
-```bash
-git clone https://github.com/maissabounar/ab-test-misleading-casestudy
-cd ab-test-misleading-casestudy
-pip install -r requirements.txt
-
-python python/generate_data.py
-python python/experiment_analysis.py
-python python/generate_charts.py
-```
