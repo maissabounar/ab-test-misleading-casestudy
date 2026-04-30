@@ -1,8 +1,251 @@
-# When a +5% A/B Test Win Is Misleading
+# Signup Flow A/B Test: +5% Conversion Lift, Negative Net Impact
 
-The test came back positive. Significant, tight CI, clean split. The team wanted to ship.
+A subscription app tested a simplified onboarding flow. Variant B removed one step and surfaced a promotional annual plan earlier. Two weeks, 120,000 users, conversion up 5.1%.
 
-Here is why they should not have.
+The team wanted to ship. This is why they should not.
+
+---
+
+## Why This Matters
+
+A 5% lift at scale feels decisive. Here it was covering a 58% spike in refund rate, a 7.9% CVR drop for returning users, and revenue per user down 4.6%.
+
+None of that was visible in the headline number. This is what the deeper cut found.
+
+---
+
+## Executive Summary
+
+| Metric | Control | Treatment | Delta |
+|---|---|---|---|
+| Conversion rate | 14.8% | 15.6% | +5.1% |
+| CUPED-adjusted uplift | | | +3.4% |
+| Refund rate | 3.1% | 4.9% | +58% |
+| Revenue per user | $6.72 | $6.41 | -4.6% |
+| Returning user CVR | 24.2% | 22.3% | -7.9% |
+| Mobile Safari CVR delta | | | -4.1% |
+
+The conversion gain is real but narrow. It comes from new users, runs on paid social traffic, and decays after 48 hours. Returning users convert worse. Revenue per user is down. Refund rate is up 58%.
+
+**Recommendation: Do not ship globally.** A restricted rollout to new users on Chrome and desktop is defensible once the Safari issue is diagnosed. Everything else needs more data.
+
+![Conversion rate by group with 95% CI](images/chart1_topline_uplift.png)
+
+---
+
+## Experiment Setup
+
+**Product:** Subscription app onboarding and checkout flow
+
+**Variant:** Removed one onboarding step. Promotional annual plan surfaced earlier in the funnel.
+
+**Hypothesis:** Less friction increases conversion. Surfacing the annual plan earlier captures users while intent is high.
+
+**Duration:** 14 days / **Sample:** 120,000 users, 50/50 split
+
+**Primary metric:** Conversion rate
+
+**Guardrail metrics:** Refund rate, revenue per user, revenue per converter
+
+**CUPED covariate:** `pre_experiment_activity_score` (pre-enrollment activity, correlated with conversion propensity)
+
+| Field | Description |
+|---|---|
+| `experiment_group` | control / treatment |
+| `conversion_flag` | 1 if converted |
+| `revenue` | Revenue at user level |
+| `refund_flag` | 1 if refund issued |
+| `device_type` | mobile / desktop |
+| `browser` | chrome_mobile, safari_mobile, chrome_desktop, firefox, edge |
+| `country` | US, UK, CA, AU, DE, FR, BR, MX, IN, other |
+| `user_type` | new / returning |
+| `traffic_source` | organic, paid_search, paid_social, email, direct |
+| `pre_experiment_activity_score` | Pre-enrollment activity score, used as CUPED covariate |
+| `prior_conversion_propensity` | Pre-experiment conversion estimate |
+| `day_since_launch` | Enrollment day (1 to 14) |
+
+---
+
+## Top-Line Result
+
+```
+Control   n=60,012   CVR=14.80%
+Treatment n=59,988   CVR=15.56%
+
+Absolute uplift:  +0.76 pp
+Relative uplift:  +5.1%
+z-statistic:       6.21
+p-value:          <0.001
+95% CI:           [+0.52 pp, +1.00 pp]
+```
+
+Significant, tight CI, clean split. If this were the only cut, it would ship.
+
+---
+
+## What Broke Under the Surface
+
+### 1. The effect is smaller than it looks
+
+Treatment had slightly higher pre-experiment activity scores than control. That alone was inflating the raw number. CUPED adjusts for this using `pre_experiment_activity_score` as a covariate.
+
+```
+Variance reduction:     14.8%
+Raw uplift:            +0.76 pp  (+5.1% relative)
+CUPED-adjusted uplift: +0.50 pp  (+3.4% relative)
+Adjusted 95% CI:       [+0.28 pp, +0.72 pp]
+```
+
+Still significant. But a third smaller than what we started with, and that changes the revenue math.
+
+![Raw vs CUPED-adjusted uplift](images/chart4_cuped.png)
+
+---
+
+### 2. The effect decays fast
+
+| Day | Control CVR | Treatment CVR | Relative Uplift | CI crosses zero |
+|---|---|---|---|---|
+| 1 | 15.3% | 16.7% | +9.2% | No |
+| 2 | 15.1% | 16.3% | +7.9% | No |
+| 3 | 14.9% | 15.6% | +4.7% | No |
+| 4 | 14.8% | 15.4% | +4.1% | No |
+| 5 | 14.7% | 15.2% | +3.4% | No |
+| 7 | 14.6% | 14.9% | +2.1% | Borderline |
+| 10 | 14.5% | 14.7% | +1.4% | Yes |
+| 14 | 14.4% | 14.5% | +0.7% | Yes |
+
+Days 1 and 2 are propping up the aggregate. This is likely users who were close to converting anyway, responding quickly to the promo framing. By day 10 the CI crosses zero. By day 14 there is essentially nothing left.
+
+The +5.1% is a weighted average built on the first 48 hours. We don't know yet whether steady-state effect would land above or below 2%, but it's not 5%.
+
+![Daily relative uplift with CI bands](images/chart2_time_stability.png)
+
+---
+
+### 3. New and returning users are having opposite experiences
+
+| Segment | Control CVR | Treatment CVR | Relative Uplift | p (raw) | p (BH) | Ship |
+|---|---|---|---|---|---|---|
+| new | 12.5% | 14.4% | +15.2% | <0.001 | <0.001 | Yes |
+| returning | 24.2% | 22.3% | -7.9% | <0.001 | <0.001 | No |
+
+The aggregate lift is entirely new users. Returning users are converting worse, significantly so after FDR correction, and they represent 30% of the base. The promotional framing likely feels misaligned to someone who already knows the product.
+
+**Browser:**
+
+| Segment | Control CVR | Treatment CVR | Relative Uplift | p (BH) | Ship |
+|---|---|---|---|---|---|
+| chrome_desktop | 16.2% | 18.7% | +15.4% | <0.001 | Yes |
+| chrome_mobile | 13.8% | 14.9% | +8.0% | <0.001 | Yes |
+| safari_mobile | 14.0% | 13.4% | -4.3% | 0.031 | No |
+| firefox | 15.1% | 15.3% | +1.3% | 0.54 | No |
+
+Something is off on mobile Safari. Could be a rendering issue, a timing problem, or the new step not loading cleanly. We don't know yet. It needs an eng ticket before we consider widening.
+
+**Traffic source:**
+
+| Segment | Relative Uplift | BH significant |
+|---|---|---|
+| paid_social | +14.2% | Yes |
+| email | +6.1% | Yes |
+| paid_search | +3.8% | Yes |
+| organic | +1.2% | No |
+| direct | -0.9% | No |
+
+Most of the lift is paid social. These users arrive already in purchase mode and respond to the promo framing. Organic and direct do not. This could be driven partly by different price sensitivity across acquisition channels, but the gap is worth watching in the next run.
+
+![Segment uplift heatmap](images/chart3_segment_heatmap.png)
+
+---
+
+### 4. Several segment wins were noise
+
+14 segment cuts at α = 0.05 without correction. Benjamini-Hochberg FDR applied:
+
+```
+Segments tested:           14
+Significant (raw p<0.05):   9
+Significant (BH-corrected): 5
+```
+
+Germany and Brazil both showed positive effects at p ≈ 0.03. Neither survived correction. Without FDR those would have been in the ship argument.
+
+![p-values before and after BH correction](images/chart5_multiple_testing.png)
+
+---
+
+### 5. Bayesian read: new users yes, returning users no
+
+Beta-Binomial model, Beta(1,1) prior, 200,000 posterior samples.
+
+| Cohort | P(T > C) | P(uplift > +2%) | P(T < C) |
+|---|---|---|---|
+| All users | 99.1% | 74.3% | 0.9% |
+| New users only | 99.8% | 91.2% | 0.2% |
+| Returning users only | 0.7% | 0.1% | 99.3% |
+
+99.3% probability the variant hurts returning users. That is not a marginal call.
+
+![Posterior distributions: all users, new users, returning users](images/chart6_bayesian.png)
+
+---
+
+### 6. Guardrail metrics are moving the wrong way
+
+| Metric | Control | Treatment | Delta |
+|---|---|---|---|
+| Conversion rate | 14.80% | 15.56% | +5.1% |
+| Refund rate (all users) | 3.1% | 4.9% | +58.1% |
+| Refund rate (converters) | 20.9% | 31.5% | +50.7% |
+| Revenue per user | $6.72 | $6.41 | -4.6% |
+| Revenue per converter | $45.40 | $41.20 | -9.3% |
+
+The promo plan is pulling in users who churn fast. Revenue per converter is down 9.3%. We are buying conversions and a third of them refund. Revenue per user is negative despite the lift.
+
+---
+
+## Decision
+
+This is a recommendation against a global ship, not a kill decision.
+
+What we know: returning users are measurably worse off, the effect decays sharply after day 2, revenue quality is degrading, and the Safari segment is broken. All of that is significant and directionally consistent.
+
+What we're assuming: that the retention impact beyond this 14-day window is negative, that steady-state effect is below 2%, and that the Safari issue is fixable. None of that is confirmed yet.
+
+Given what we can see, the risk of shipping globally is not worth the upside. The conversion gain for new users on Chrome is real and worth pursuing. The rest needs more time.
+
+**Path forward:**
+
+Segment to new users only, exclude returning users entirely. Get an eng investigation on mobile Safari before widening. Reset the success bar to +2% CUPED-adjusted, not raw conversion. Add refund rate and 30-day retention as co-primary metrics, not afterthought guardrails. Run for four full weeks.
+
+---
+
+## What I'd Tell the PM
+
+The +5% won't be there in 30 days. It's front-loaded on the first 48 hours and it fades. If we ship this globally and look back in a month, the number will be smaller and the refund rate story will be harder to explain.
+
+We're buying conversions with a promo offer. That's not always bad, but here a third of those converters are refunding. Revenue per user is already down 4.6% in a two-week window. That compounds.
+
+Returning users are a hard no. 7.9% CVR drop, holds after correction, 30% of the base. We don't know yet what that means for 60-day retention, but I wouldn't ship this to that group until we do.
+
+Safari needs an eng ticket. Could be a rendering bug, could be something structural with the new step. We genuinely don't know, and shipping to that segment without knowing is a risk we don't have to take.
+
+Honest read: Chrome plus new users only, rerun for four weeks with refund rate as a primary metric. If CUPED-adjusted uplift holds above 2% and the refund rate stabilises, the case for a broader rollout becomes a real conversation.
+
+---
+
+## Business Impact
+
+500,000 monthly eligible users.
+
+| Scenario | Incremental Conversions | Gross Revenue | Refund Cost | Net Revenue |
+|---|---|---|---|---|
+| Ship globally | +3,800 | +$156,600 | -$52,400 | +$104,200 |
+| New users only | +2,950 | +$121,400 | -$18,700 | +$102,700 |
+| No ship | 0 | $0 | $0 | $0 |
+
+Net revenue gap between global and restricted launch is $1,500 a month. The refund cost difference is $33,700. The returning-user retention risk in the global scenario is not in these numbers.
 
 ---
 
@@ -36,256 +279,21 @@ ab-test-misleading-casestudy/
 
 ---
 
-## Executive Summary
+## Code Overview
 
-A subscription app removes one onboarding step and surfaces a promotional annual plan earlier. Conversion goes up 5.1%. The number is real. The story behind it is not clean.
-
-| Metric | Control | Treatment | Delta |
-|---|---|---|---|
-| Conversion rate | 14.8% | 15.6% | +5.1% |
-| CUPED-adjusted uplift | | | +3.4% |
-| Refund rate | 3.1% | 4.9% | +58% |
-| Revenue per user | $6.72 | $6.41 | -4.6% |
-| Returning user CVR | 24.2% | 22.3% | -7.9% |
-| Mobile Safari CVR delta | | | -4.1% |
-
-We are buying conversions. Revenue per user is down, refund rate is up 58%, and returning users are converting worse. The aggregate lifts from new users and a two-day spike that fades by day 5.
-
-**Do not ship globally.** A restricted launch to new users on Chrome and desktop is defensible. Everything else needs fixing first.
-
-![Top-line conversion uplift with 95% CI](images/chart1_topline_uplift.png)
-
----
-
-## Business Problem
-
-An aggregate conversion rate is an average. It folds together user segments with opposite reactions, an early effect that won't hold, and conversions that cost more in refunds than they earn in revenue.
-
-Shipping off the headline number does not surface any of that. Running the test longer and cutting the data properly does.
-
----
-
-## Data
-
-120,000 users. 50/50 split. 14-day window.
-
-| Field | Description |
+| File | Purpose |
 |---|---|
-| `user_id` | Unique user identifier |
-| `experiment_group` | control / treatment |
-| `assignment_timestamp` | Enrollment timestamp |
-| `conversion_flag` | 1 if converted |
-| `revenue` | Revenue at user level (0 if no conversion) |
-| `refund_flag` | 1 if refund issued |
-| `device_type` | mobile / desktop |
-| `browser` | chrome_mobile, safari_mobile, chrome_desktop, firefox, edge, etc. |
-| `country` | US, UK, CA, AU, DE, FR, BR, MX, IN, other |
-| `user_type` | new / returning |
-| `traffic_source` | organic, paid_search, paid_social, email, direct |
-| `prior_sessions` | Sessions before experiment window |
-| `prior_conversion_propensity` | Pre-experiment conversion estimate |
-| `pre_experiment_activity_score` | Pre-enrollment activity score. Used as the CUPED covariate. |
-| `session_count_7d` | Sessions in the 7 days before enrollment |
-| `variant_exposure_count` | Variant exposure count |
-| `day_since_launch` | Enrollment day (1 to 14) |
-
-Guardrail metrics: refund rate, revenue per user, revenue per converter.
+| `python/generate_data.py` | Synthetic dataset with segment-level heterogeneity, time decay, refund uplift, and false-positive segments baked into the DGP |
+| `python/experiment_analysis.py` | z-test, CUPED, time stability, segment analysis, BH correction, Bayesian Beta-Binomial, guardrail metrics, business impact |
+| `python/generate_charts.py` | Six charts |
+| `sql/01_experiment_summary.sql` | Top-line CVR, uplift, z-test, 95% CI in BigQuery |
+| `sql/02_segment_analysis.sql` | Segment-level uplift across all dimensions in one query |
+| `sql/03_guardrail_metrics.sql` | Refund rate, revenue per user, revenue per converter, net revenue |
+| `sql/04_time_stability.sql` | Daily CVR, uplift, and CI bounds |
 
 ---
 
-## Top-Line Result
-
-```
-Control   n=60,012   CVR=14.80%
-Treatment n=59,988   CVR=15.56%
-
-Absolute uplift:  +0.76 pp
-Relative uplift:  +5.1%
-z-statistic:       6.21
-p-value:          <0.001
-95% CI:           [+0.52 pp, +1.00 pp]
-```
-
-Significant, tight CI, clean split. This is exactly what a good result looks like on the surface. The problems are underneath.
-
----
-
-## CUPED Adjustment
-
-Treatment had slightly higher pre-experiment activity scores than control. That alone explains part of the uplift. CUPED regresses out `pre_experiment_activity_score` before computing the effect, so pre-existing differences between groups stop inflating the estimate.
-
-```
-Variance reduction:     14.8%
-Raw uplift:            +0.76 pp  (+5.1% relative)
-CUPED-adjusted uplift: +0.50 pp  (+3.4% relative)
-Adjusted 95% CI:       [+0.28 pp, +0.72 pp]
-```
-
-Still positive, still significant. But a third smaller than the raw number. That changes the revenue math.
-
-![Raw vs CUPED-adjusted uplift](images/chart4_cuped.png)
-
----
-
-## Time Stability
-
-| Day | Control CVR | Treatment CVR | Relative Uplift | CI crosses zero |
-|---|---|---|---|---|
-| 1 | 15.3% | 16.7% | +9.2% | No |
-| 2 | 15.1% | 16.3% | +7.9% | No |
-| 3 | 14.9% | 15.6% | +4.7% | No |
-| 4 | 14.8% | 15.4% | +4.1% | No |
-| 5 | 14.7% | 15.2% | +3.4% | No |
-| 7 | 14.6% | 14.9% | +2.1% | Borderline |
-| 10 | 14.5% | 14.7% | +1.4% | Yes |
-| 14 | 14.4% | 14.5% | +0.7% | Yes |
-
-The first 48 hours are doing most of the work. Likely users who were already close to converting responding quickly to the promo framing. By day 10 the CI crosses zero. By day 14 there is almost nothing left. The aggregate +5.1% is a weighted average that leans heavily on those early days. This won't hold at steady state.
-
-![Daily uplift over time with CI](images/chart2_time_stability.png)
-
----
-
-## Segment Heterogeneity
-
-### User type
-
-| Segment | Control CVR | Treatment CVR | Relative Uplift | p (raw) | p (BH) | Ship |
-|---|---|---|---|---|---|---|
-| new | 12.5% | 14.4% | +15.2% | <0.001 | <0.001 | Yes |
-| returning | 24.2% | 22.3% | -7.9% | <0.001 | <0.001 | No |
-
-The aggregate lift comes entirely from new users. Returning users are converting worse. That is not a nuance, that is a reason not to ship.
-
-### Browser
-
-| Segment | Control CVR | Treatment CVR | Relative Uplift | p (BH) | Ship |
-|---|---|---|---|---|---|
-| chrome_desktop | 16.2% | 18.7% | +15.4% | <0.001 | Yes |
-| chrome_mobile | 13.8% | 14.9% | +8.0% | <0.001 | Yes |
-| safari_mobile | 14.0% | 13.4% | -4.3% | 0.031 | No |
-| firefox | 15.1% | 15.3% | +1.3% | 0.54 | No |
-
-Something is off on mobile Safari. Rendering issue, timing, the new step not loading correctly. Worth diagnosing before any wider rollout.
-
-### Traffic source
-
-| Segment | Relative Uplift | BH significant |
-|---|---|---|
-| paid_social | +14.2% | Yes |
-| email | +6.1% | Yes |
-| paid_search | +3.8% | Yes |
-| organic | +1.2% | No |
-| direct | -0.9% | No |
-
-Most of the lift is paid social. Those users land in a different mindset and the promo framing works on them. It does not work on organic or direct.
-
-![Segment uplift heatmap](images/chart3_segment_heatmap.png)
-
----
-
-## Multiple Testing
-
-14 segment cuts at α = 0.05 without correction is a recipe for false positives. Benjamini-Hochberg FDR applied at α = 0.05:
-
-```
-Segments tested:           14
-Significant (raw p<0.05):   9
-Significant (BH-corrected): 5
-```
-
-Germany and Brazil both showed positive effects around p = 0.03 in the raw results. Neither survived correction. Without FDR those would have been cited as evidence of broad international appeal.
-
-![p-values before and after BH correction](images/chart5_multiple_testing.png)
-
----
-
-## Bayesian Read
-
-Beta-Binomial model, Beta(1,1) prior, 200,000 posterior samples per group.
-
-| Cohort | P(T > C) | P(uplift > +2%) | P(T < C) |
-|---|---|---|---|
-| All users | 99.1% | 74.3% | 0.9% |
-| New users only | 99.8% | 91.2% | 0.2% |
-| Returning users only | 0.7% | 0.1% | 99.3% |
-
-There is a 99.3% probability the variant hurts returning users. That is not a risk to manage around. It is a reason to exclude them.
-
-![Bayesian posterior distributions](images/chart6_bayesian.png)
-
----
-
-## Guardrails
-
-| Metric | Control | Treatment | Delta |
-|---|---|---|---|
-| Conversion rate | 14.80% | 15.56% | +5.1% |
-| Refund rate (all users) | 3.1% | 4.9% | +58.1% |
-| Refund rate (converters) | 20.9% | 31.5% | +50.7% |
-| Revenue per user | $6.72 | $6.41 | -4.6% |
-| Revenue per converter | $45.40 | $41.20 | -9.3% |
-
-More conversions, lower revenue per converter, much higher refund rate. The promo plan is pulling in users who churn fast. Revenue per user is down despite the conversion lift. This metric should have been on the launch checklist from day one.
-
----
-
-## Recommendation
-
-**Do not ship globally.**
-
-Three things make this clear.
-
-Returning users are worse off. A 7.9% CVR drop, significant after FDR correction, affects 30% of the user base. The retention impact beyond this 14-day window is not captured here but it is not going to be positive.
-
-Revenue quality is degrading. A 58% increase in refund rate combined with 9% lower revenue per converter means the financial case is weaker than it looks. The conversion gain is real. The net revenue gain is much smaller.
-
-The effect is not stable. The aggregate result depends heavily on days 1 and 2. By day 10 the CI crosses zero. There is no evidence this holds at steady state.
-
-**Path forward:**
-
-Segment to new users only and exclude returning users from the variant. Fix the mobile Safari issue before any further rollout. Add refund rate and 30-day retention as co-primary metrics for the next run, not afterthought guardrails. Run for four full weeks. Set the success bar at +2% CUPED-adjusted, not raw conversion.
-
----
-
-## What I'd Tell the PM
-
-- The headline number is real but it is front-loaded. If you ship now and check back in 30 days, the lift will look a lot smaller.
-- We are essentially buying conversions with a promotional offer. Some of those users refund. Revenue per user is already down 4.6% in a two-week window.
-- Returning users are a hard no. A 7.9% CVR drop that is significant after correction is not noise. Shipping this to them is a retention risk we cannot quantify yet.
-- The safe move is new users on Chrome only. The net revenue gap between that and a global ship is $1,500 a month. The risk gap is not.
-- I would rerun this for four weeks with refund rate as a primary metric. If the adjusted uplift holds above +2% and refund rate stabilises, the case for a broader rollout gets stronger.
-
----
-
-## Business Impact
-
-500,000 monthly eligible users.
-
-| Scenario | Incremental Conversions | Gross Revenue | Refund Cost | Net Revenue |
-|---|---|---|---|---|
-| Ship globally | +3,800 | +$156,600 | -$52,400 | +$104,200 |
-| New users only | +2,950 | +$121,400 | -$18,700 | +$102,700 |
-| No ship | 0 | $0 | $0 | $0 |
-
-The net revenue difference between global and restricted launch is $1,500 per month. The risk difference is not comparable. Restricted launch gives up almost nothing in the short term and avoids compounding returning-user damage over time.
-
----
-
-## Charts
-
-| Chart | File | What it shows |
-|---|---|---|
-| 1 | `chart1_topline_uplift.png` | Conversion rate by group and 95% CI on the absolute difference |
-| 2 | `chart2_time_stability.png` | Daily relative uplift with CI bands |
-| 3 | `chart3_segment_heatmap.png` | Relative uplift by segment, sorted |
-| 4 | `chart4_cuped.png` | Raw vs CUPED-adjusted uplift with error bars |
-| 5 | `chart5_multiple_testing.png` | Raw vs BH-corrected p-values across all segments |
-| 6 | `chart6_bayesian.png` | Posterior distributions for all users, new users, and returning users |
-
----
-
-## How to Reproduce
+## Reproducing the Analysis
 
 ```bash
 git clone https://github.com/maissabounar/ab-test-misleading-casestudy
@@ -296,19 +304,3 @@ python python/generate_data.py
 python python/experiment_analysis.py
 python python/generate_charts.py
 ```
-
-All scripts run from the repo root.
-
----
-
-## Code Overview
-
-| File | Purpose |
-|---|---|
-| `python/generate_data.py` | Synthetic dataset. Segment-level treatment heterogeneity, time decay, refund uplift, and false-positive segments baked into the data generating process. |
-| `python/experiment_analysis.py` | z-test, CUPED, time stability, segment analysis, BH correction, Bayesian Beta-Binomial, guardrail metrics, business impact. |
-| `python/generate_charts.py` | Six charts. |
-| `sql/01_experiment_summary.sql` | Top-line CVR, uplift, z-test, 95% CI. BigQuery. |
-| `sql/02_segment_analysis.sql` | Segment-level uplift across all dimensions in one query. |
-| `sql/03_guardrail_metrics.sql` | Refund rate, revenue per user, revenue per converter, net revenue. |
-| `sql/04_time_stability.sql` | Daily CVR, uplift, and CI bounds. |
