@@ -309,7 +309,7 @@ ab-test-misleading-casestudy/
 
 ---
 
-## Methods used
+## Methods Used
 
 - A/B test analysis
 - Statistical significance testing
